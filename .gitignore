@@ -1,6 +1,7 @@
 /results
 /archive
 /data/delft
+/log
 *.bak
 *.pdf
 *.zip

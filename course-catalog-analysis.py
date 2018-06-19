@@ -13,23 +13,25 @@ free-text fields. Saved to a .txt file in the results directory
 Instructions:
 todo
 """
+
 # import modules
 # general
 import os
 import logging
 import subprocess
-# testing - not developed for this script
-# import pytest
+
 # project specific
 import nltk
 """ Run these 2 lines to download the necessary stopwords data from this library
 import nltk
 nltk.download('stopwords')
 """
-# support/helper functions defined first..
-# .. data import
-# .. semantic analysis functions
-# main body execution code is defined near the end of the script
+
+# Order of function definitions
+# support/helper
+# data import
+# semantic analysis
+# main body execution code and saving results defined near end
 
 def file_folder_specs(root, uni):
     """ Get file and folder structure - the place to change folder information.
@@ -75,7 +77,7 @@ def _stop_logger(handler):
     log = logging.getLogger()
     log.removeHandler(handler)
     
-        def import_study_gids(ff, course_catalog_fn):
+def import_study_gids(ff, course_catalog_fn):
     import pyexcel
 
     # from data directory, import course_catalog name
