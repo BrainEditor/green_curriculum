@@ -1,0 +1,8 @@
+/results
+/archive
+/data/delft
+*.bak
+*.pdf
+*.zip
+*.xls
+*.xlsx
