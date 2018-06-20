@@ -366,9 +366,9 @@ def main():
     # uncomment to view all original cleaned words and their stemmed forms:
     # [print(word, stem) for word, stem in sorted(zip(all_clean_words, all_word_stems))]
     unique_word_stems = set(all_word_stems)
-    print("Courses with no free text found:", len(courses_no_words), ". Therefore", len(keyword_frequency),
-          "courses for keyword analysis.")
-    print("These courses contained", len(all_clean_words), "total words, including", len(unique_word_stems),
+    print("Courses with no free text found:", len(courses_no_words) + ". Therefore the free-text of", len(keyword_frequency),
+          "courses used for keyword analysis.")
+    print("This text corpus contains", len(all_clean_words), "total words, including", len(unique_word_stems),
           "unique word stems.")
 
     # get metrics on the words and keywords, for ranking and display
@@ -416,7 +416,7 @@ def main():
     fout.close()
 
     keywords_not_in_dataset = set(keyword_stems) - set(all_word_stems)
-    print("Keywords not found anywhere in dataset:", keywords_not_in_dataset)
+    print("Imported keywords not present in dataset:\n", keywords_not_in_dataset)
 
     # uncomment these lines to also show the words frequently occuring that are not in the keyword list
     """print('\nMost frequent of all words:')
@@ -425,7 +425,6 @@ def main():
         frequent_words = sorted(histogram, key=histogram.get, reverse=True)[:words_to_show]
         print(course_code, ':', frequent_words, ', total words =', total_words)
     """
-
     return locals()
 
 
