@@ -22,18 +22,19 @@ import subprocess
 
 # project specific
 import nltk
-
-""" Run these 2 lines to download the necessary stopwords data from this library
+""" Run these 2 lines separately to download the necessary stopwords data from this library
 import nltk
 nltk.download('stopwords')
 """
 
 
-# Order of function definitions
+# Order of function definitions:
 # support/helper
 # data import
+# data cleaning
 # semantic analysis
-# main body execution code and saving results defined near end
+# results calculation
+# main body execution code at the end, includes saving the results
 
 
 def file_folder_specs(root, uni):
@@ -55,8 +56,10 @@ def file_folder_specs(root, uni):
             os.path.join(root, 'results', uni))
     }
 
-    # todo: check for existence of folders to prevent later errors
-    # if not os.path.exists(files_folders[data]): os.makedirs(files_folders[data])
+    # todo: convert to loop, DNR
+    if not os.path.exists(files_folders['results']): os.makedirs(files_folders['results'])
+    if not os.path.exists(files_folders['unidata']): os.makedirs(files_folders['unidata'])
+    if not os.path.exists(files_folders['keyworddata']): os.makedirs(files_folders['keyworddata'])
     return files_folders
 
 
@@ -85,11 +88,9 @@ def _stop_logger(handler):
     log = logging.getLogger()
     log.removeHandler(handler)
 
-
+# data import
 def import_study_gids(ff, course_catalog_fn):
     import pyexcel
-
-    # from data directory, import course_catalog name
 
     # filepath assumes data stored as data/uni/filename
     filepath = ff['unidata'] + '\\' + course_catalog_fn
@@ -123,10 +124,9 @@ def convert_common_course_names():
     example_translations["Advanced Course on LCA"] = "LCA"
     example_translations["Advanced Course on LCA: Theory to Practice"] = "LCA"
     example_translations["LCA Practice & Reporting"] = "LCA"
-
     return example_translations
 
-
+# data cleaning
 def clean_text(text, stopwords):
     """ Converts free-text with punctuation, numbers, capital letters etc.
         into a list of words
@@ -160,7 +160,7 @@ def stem_words(words):
     word_stems = [stemmer.stemWord(word) for word in words]
     return word_stems
 
-
+# semantic analysis
 def get_word_frequency(words):
     # blacklisting approach to count all words, not keywords
     counts = dict()
@@ -180,7 +180,7 @@ def get_keyword_frequency(words, keywords):
             counts[word] = counts.get(word, 0) + 1
     return counts
 
-
+# calculate results
 def calculate_metrics(keyword_frequency, word_frequency):
     # to do: extend to include a score for the relevance of each keyword
     # so a broad word like 'energy' can score less than a more specifc one such as 'renewable'
@@ -231,77 +231,87 @@ def main():
     """
 
     # SETTINGS
-    root = 'C:/code/course-catalog/'
+    print("--Loading setings--")
+    root = 'C:/code/green_curriculum/'
     uni = "delft"
-    ff = file_folder_specs(root, uni)
     course_catalog_fn = 'studiegids_1718.xls'
     # course_catalog_fn = 'studiegids.xls'
+    unique_course_identifier_header = 'COURSE_ID'
     keywords_fn = 'sustainability_keywords.txt'
     # keywords_fn = 'waste_keywords.txt'
     # keywords_fn = 'keywords_green_branding.txt'
 
-    # for print to screen
+    # The Excel data export provided by TU Delft included many columns with headers
+    # The headers containing free text we want to analyse are listed here.
+    # Edit if the free-text headers are different for your university
+    free_text_headers = ['SUMMARY', 'COURSECONTENS', 'COURSECONTENSMORE', 'STUDYGOALS',
+                         'STUDYGOALSMORE', 'EDUCATIONMETHOD', 'LITRATURE', 'PRACTICALGUIDE',
+                         'BOOKS', 'READER', 'ASSESMENT', 'SPECIALINFORMATION', 'REMARKS']
+
+    # these columns are used for tiltering and later reporting of results
+    ects_points_header = 'ECTS_POINTS'
+    faculty_code_header = 'BUREAU_ID'
+    program_code_header = 'EDUCATION_CODE'
+    language_header = 'COURSELANGUAGE'
+
+    # set filter conditions
+
+    # studiegids has 2 language settings - we are using the export of the English version
+    # some of the courses taught in Dutch(Nederlands) also include English course descriptions,
+    # but the data for these is filled in poorly and hence excluded from our language list."""
+    language_include = ['English', 'Engels', 'Engels, Nederlands', 'Nederlands (op verzoek Engels)']  # , 'Nederlands']
+    # ignore courses with less ECTS than this value. Set to 0 to include all.
+    ects_min = 1
+
+    # enter faculty or pgoram caodes to restrict results to specific faculties or programs.
+    # all_faculties_delft = ['', 'CiTG', 'LR', 'TNW', 'BK', 'Extern', '3mE', 'EWI', 'TBM', 'IO', 'UD']
+    faculty_include = []
+    program_include = []
+
+    # for print to screen console
     words_to_show = 5
 
-    # later extention of code - allow comparison between different sets of
-    # keywords to understand relative importance of topics across courses
-    # e.g. for comparison of social, economic and environmental content prevalence
-    comparativeananalysis = False
 
     # READ DATA
-
+    print("--Importing data--")
+    ff = file_folder_specs(root, uni)
     # words to exclude from analysis
 
-    # stopwords = get_stopwords('dutch')
+    # stopwords are the ones we do not want to analyse, e.g. 'the', 'and', 'but'
     stopwords = nltk.corpus.stopwords.words('english')
-    # some words were missing from the list which occur frequently in studiegids
-    # these should also be removed as they distort the keyword analysis
+
+    # some words which occur frequently in studiegids but contain no useful info are missing from the stopwords
+    # we add these dataset-specific stopwords in to our list manually
     custom_stopwords = ['will', 'refer', 'part', 'description',
                         'see', 'can', 'course', 'students', 'assignment', 'o',
                         'us', 'also', 'lecture', 'main', 'module', 'exam',
-                        'work', 'week', 'brightspace', 'blackboard']  # 'x000d'
+                        'work', 'week', 'brightspace', 'blackboard']
     stopwords += custom_stopwords
 
-    # read data from xlsx file
+    # read data from Excel file using the pyexcel library
     course_catalog, headers = import_study_gids(ff, course_catalog_fn)
     print("Courses loaded:", len(course_catalog), "\nTotal headers/columns:", len(headers))
 
-    # import keywords to seek from file
+    # read keywords from .txt file
     keywords = import_keywords(ff, keywords_fn)
     print("Keywords imported:", len(keywords))
 
-    # ORGANIZE/CLEAN DATA
-
-    # stem keywords, for later comparison to stemmed free-text words
-    # list(set()) removes duplicates
+    # stem the keywords and remove duplicates
+    # word stemming can be learned about here: https://en.wikipedia.org/wiki/Stemming
     keyword_stems = list(set(stem_words(keywords)))
     print("Distinct keywords after stemming:", len(keyword_stems))
 
-    # set filter conditions
-    # if empty, the filter will effectively be ignored, see 'idx_' lines below
+    # Filtering of
 
-    # ignore courses with 0 ECTS assigned: 41 of 2633 courses for 17/18
-    ects_min = 1
-
-    all_faculties = ['', 'CiTG', 'LR', 'TNW', 'BK', 'Extern', '3mE', 'EWI', 'TBM', 'IO', 'UD']
-    faculty_include = []  # ['3mE']
-    program_include = []
-    """studiegids has 2 language settings - we are using the export of the English version
-    some of the courses taught in Dutch(Nederlands) only have English info still
-    but the data for these is poorly filled in and hence excluded from our language list
-    Some small code changes are required for this software to work with other languages:
-        edit the stop words, custom stop words, and stemming algorithm, then check results """
-    language_include = ['English', 'Engels', 'Engels, Nederlands', 'Nederlands (op verzoek Engels)']  # , 'Nederlands']
-
-    # for each filter, determine the indices of courses which pass that filter
+    # for each filter, get the indices of courses which pass that filter
     # if the filter conditions are left empty, all courses pass the filter due to "or" condition
-    idx_ects_min = [i for i, item in enumerate(course_catalog) if item[headers.index('ECTS_POINTS')] >= ects_min]
+    idx_ects_min = [i for i, item in enumerate(course_catalog) if item[headers.index(ects_points_header)] >= ects_min]
     idx_faculty_include = [i for i, item in enumerate(course_catalog) if
-                           item[headers.index('BUREAU_ID')] in faculty_include or faculty_include == []]
+                           item[headers.index(faculty_code_header)] in faculty_include or faculty_include == []]
     idx_program_include = [i for i, item in enumerate(course_catalog) if
-                           item[headers.index('EDUCATION_CODE')] in program_include or program_include == []]
+                           item[headers.index(program_code_header)] in program_include or program_include == []]
     idx_language_include = [i for i, item in enumerate(course_catalog) if
-                            item[headers.index('COURSELANGUAGE')] in language_include or language_include == []]
+                            item[headers.index(language_header)] in language_include or language_include == []]
 
     # combine all filters using sets, to leave only courses which pass all filters
     idx = list(set(idx_ects_min) & set(idx_faculty_include) & set(idx_program_include) & set(
@@ -310,12 +320,8 @@ def main():
     # apply filter to select courses from imported catalog
     courses_to_assess = [course_catalog[i] for i in idx]
     print("Courses that pass all filters:", len(courses_to_assess))
-    print("Course keyword analysis starting, this may take a few minutes...")
+    print("--Analysis of key words starting. May take minutes--")
 
-    # the data for Delft was received with the following headers containing free text
-    free_text_headers = ['SUMMARY', 'COURSECONTENS', 'COURSECONTENSMORE', 'STUDYGOALS',
-                         'STUDYGOALSMORE', 'EDUCATIONMETHOD', 'LITRATURE', 'PRACTICALGUIDE',
-                         'BOOKS', 'READER', 'ASSESMENT', 'SPECIALINFORMATION', 'REMARKS']
     # get indices of these headers for later use
     wanted_header_indices = [headers.index(wanted_header) for wanted_header in free_text_headers]
 
@@ -330,13 +336,9 @@ def main():
     for i, course in enumerate(courses_to_assess):
         free_text = ''
         clean_words = ''
-        course_id = course[headers.index('COURSE_ID')]
-        # course_code only works as unique identified when looking at a single year
-        # So include year with code, as a tuple, separated only at display of results
-        # course_code = (course[headers.index('YEAR_LABEL')], course[headers.index('COURSE_CODE')])
-
+        course_id = course[headers.index(unique_course_identifier_header)]
+        # construct a long string with all free text from chosen columns
         for j in wanted_header_indices:
-            # construct a long string with all free text from chosen columns
             free_text = ' '.join([course[int(j)] for j in wanted_header_indices])
 
         if free_text == '':
@@ -357,11 +359,11 @@ def main():
                 course[headers.index('BUREAU_ID')]
             )
 
-            # for analysis at a higher level than specific courses.
+            # combine all words found in the free-text fields into a list
             all_clean_words += clean_words
             all_word_stems += word_stems
 
-    # to view all original cleaned words and their stemmed forms
+    # uncomment to view all original cleaned words and their stemmed forms:
     # [print(word, stem) for word, stem in sorted(zip(all_clean_words, all_word_stems))]
     unique_word_stems = set(all_word_stems)
     print("Courses with no free text found:", len(courses_no_words), ". Therefore", len(keyword_frequency),
@@ -416,14 +418,13 @@ def main():
     keywords_not_in_dataset = set(keyword_stems) - set(all_word_stems)
     print("Keywords not found anywhere in dataset:", keywords_not_in_dataset)
 
-    """
-    print('\nMost frequent of all words:')
+    # uncomment these lines to also show the words frequently occuring that are not in the keyword list
+    """print('\nMost frequent of all words:')
         for course_code, histogram in word_frequency.items():
         total_words = word_count[course_code]
         frequent_words = sorted(histogram, key=histogram.get, reverse=True)[:words_to_show]
         print(course_code, ':', frequent_words, ', total words =', total_words)
     """
-    # VISUALIZE
 
     return locals()
 
