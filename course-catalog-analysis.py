@@ -16,6 +16,7 @@ todo
 
 # import modules
 # general
+import sys
 import os
 import logging
 import subprocess
@@ -57,9 +58,15 @@ def file_folder_specs(root, uni):
     }
 
     # todo: convert to loop, DNR
-    if not os.path.exists(files_folders['results']): os.makedirs(files_folders['results'])
-    if not os.path.exists(files_folders['unidata']): os.makedirs(files_folders['unidata'])
-    if not os.path.exists(files_folders['keyworddata']): os.makedirs(files_folders['keyworddata'])
+    if not os.path.exists(files_folders['unidata']):
+        os.makedirs(files_folders['unidata'])
+        # if this folder is missing, the data cannot be present: stop script and inform user
+        sys.exit("Folder created: " + files_folders['unidata'] + " \nPlease add your course data here and run again.")
+
+    if not os.path.exists(files_folders['keyworddata']):
+        os.makedirs(files_folders['keyworddata'])
+    if not os.path.exists(files_folders['results']):
+        os.makedirs(files_folders['results'])
     return files_folders
 
 
@@ -88,6 +95,7 @@ def _stop_logger(handler):
     log = logging.getLogger()
     log.removeHandler(handler)
 
+
 # data import
 def import_study_gids(ff, course_catalog_fn):
     import pyexcel
@@ -96,7 +104,11 @@ def import_study_gids(ff, course_catalog_fn):
     filepath = ff['unidata'] + '\\' + course_catalog_fn
 
     # Get an array from the spreadsheet-based data
-    course_catalog = pyexcel.get_array(file_name=filepath, encoding='utf-8')
+    try:
+        course_catalog = pyexcel.get_array(file_name=filepath, encoding='utf-8')
+    except:
+        #
+        sys.exit("import failed from spreadsheet filepath: " + filepath)
 
     headers = course_catalog.pop(0)
     return course_catalog, headers
@@ -125,6 +137,7 @@ def convert_common_course_names():
     example_translations["Advanced Course on LCA: Theory to Practice"] = "LCA"
     example_translations["LCA Practice & Reporting"] = "LCA"
     return example_translations
+
 
 # data cleaning
 def clean_text(text, stopwords):
@@ -160,6 +173,7 @@ def stem_words(words):
     word_stems = [stemmer.stemWord(word) for word in words]
     return word_stems
 
+
 # semantic analysis
 def get_word_frequency(words):
     # blacklisting approach to count all words, not keywords
@@ -179,6 +193,7 @@ def get_keyword_frequency(words, keywords):
             # print(word)
             counts[word] = counts.get(word, 0) + 1
     return counts
+
 
 # calculate results
 def calculate_metrics(keyword_frequency, word_frequency):
@@ -232,7 +247,11 @@ def main():
 
     # SETTINGS
     print("--Loading setings--")
-    root = 'C:/code/green_curriculum/'
+    # root director must host the data, this script, and will soon hold the results too.
+    # if this line does not correctly identify the root, enter it manually below instead.
+    root = os.getcwd()
+    # root = 'C:/code/green_curriculum/'
+    # enter the name of your university: used for finding the data on disk and storing results
     uni = "delft"
     course_catalog_fn = 'studiegids_1718.xls'
     # course_catalog_fn = 'studiegids.xls'
@@ -270,7 +289,6 @@ def main():
 
     # for print to screen console
     words_to_show = 5
-
 
     # READ DATA
     print("--Importing data--")
@@ -366,7 +384,7 @@ def main():
     # uncomment to view all original cleaned words and their stemmed forms:
     # [print(word, stem) for word, stem in sorted(zip(all_clean_words, all_word_stems))]
     unique_word_stems = set(all_word_stems)
-    print("Courses with no free text found:", len(courses_no_words) + ". Therefore the free-text of", len(keyword_frequency),
+    print("Courses with no free text found:", len(courses_no_words), ". Therefore, text of", len(keyword_frequency),
           "courses used for keyword analysis.")
     print("This text corpus contains", len(all_clean_words), "total words, including", len(unique_word_stems),
           "unique word stems.")
@@ -451,7 +469,7 @@ if __name__ == "__main__":
         locals().update(main())
         # if you don't want the script to pollute your namespace use 
         # results = main()
-        # which gives you all varibales from main in a dict called 'results'
+        # which gives you all variables from main in a dict called 'results'
 
     except Exception as exc:
         logging.exception(exc)
