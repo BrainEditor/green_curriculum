@@ -28,7 +28,6 @@ import nltk
 nltk.download('stopwords')
 """
 
-
 # Order of function definitions:
 # support/helper
 # data import
@@ -200,8 +199,7 @@ def calculate_metrics(keyword_frequency, word_frequency):
     # to do: extend to include a score for the relevance of each keyword
     # so a broad word like 'energy' can score less than a more specifc one such as 'renewable'
     # this would also require a change to the way keywords are entered and imported
-    # to do: multiple keyword-set comparisons? Although not difficult to..
-    # run twice on different keyword files and compare the results
+
     word_metrics = {}
     for course_code, histogram in keyword_frequency.items():
         # print(course_code, word_frequency[course_code])
@@ -220,32 +218,9 @@ def calculate_metrics(keyword_frequency, word_frequency):
 
 
 def main():
-    # The program code starts here when run
-    """ Enter data into config file
-    Modes: 
-        Methodology: 
-            Pre-defined Keyword scoring, keyword-identification
-            Time-series or single year
-            
-        Data:
-            If Keyword scoring: input keyword filename
-            Course Filters (to include): 
-                    Faculties, Programmes, MSc/BSc, Core/Elective,  
-            Time Filters (to include):  
-                If single year (affects results) 1. Else, list of years
-        
-        Results:
-            Top N words
-        
-            Visualisations
-                Check AIDA booklet
-                "VosViewer is particularly good at producing textual maps of any sorts
-                not just from scientometric datasets."
-                Messaged AIDA employees at 3me via contact form
-        
-    """
+    # When run, the script starts from here
 
-    # SETTINGS
+    # SETTINGS - edit for your own requirements and config.
     print("--Loading setings--")
     # root director must host the data, this script, and will soon hold the results too.
     # if this line does not correctly identify the root, enter it manually below instead.
@@ -258,7 +233,6 @@ def main():
     unique_course_identifier_header = 'COURSE_ID'
     keywords_fn = 'sustainability_keywords.txt'
     # keywords_fn = 'waste_keywords.txt'
-    # keywords_fn = 'keywords_green_branding.txt'
 
     # The Excel data export provided by TU Delft included many columns with headers
     # The headers containing free text we want to analyse are listed here.
@@ -275,10 +249,11 @@ def main():
 
     # set filter conditions
 
-    # studiegids has 2 language settings - we are using the export of the English version
+    # studiegids has 2 language settings - we are using only the export of the English version
     # some of the courses taught in Dutch(Nederlands) also include English course descriptions,
     # but the data for these is filled in poorly and hence excluded from our language list."""
     language_include = ['English', 'Engels', 'Engels, Nederlands', 'Nederlands (op verzoek Engels)']  # , 'Nederlands']
+    
     # ignore courses with less ECTS than this value. Set to 0 to include all.
     ects_min = 1
 
